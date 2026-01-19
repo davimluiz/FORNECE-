@@ -1,0 +1,7 @@
+{
+  "name": "Gestão de Fornecedores FINDES - FORNECE+",
+  "description": "Protótipo funcional para avaliação, ranking e consulta externa de fornecedores seguindo o padrão visual FINDES (SESI/SENAI).",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
