@@ -11,6 +11,10 @@
         body { font-family: 'Roboto', sans-serif; background-color: #FFFFFF; }
         .findes-shadow { box-shadow: 0 4px 20px rgba(0, 51, 102, 0.08); }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slideUp { animation: slideUp 0.5s ease-out; }
     </style>
 <script type="importmap">
 {
@@ -26,5 +30,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
+    <!-- Carregamento do script principal para funcionamento no Vercel -->
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
