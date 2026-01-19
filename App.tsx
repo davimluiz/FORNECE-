@@ -1,19 +1,17 @@
 
 import React, { useState } from 'react';
 import { ViewType } from './types';
-import { COLORS } from './constants';
 import EvaluationScreen from './screens/EvaluationScreen';
 import RankingScreen from './screens/RankingScreen';
 import ExternalScreen from './screens/ExternalScreen';
+import ManagementScreen from './screens/ManagementScreen';
 import { 
-  Star, 
-  BarChart3, 
-  Search, 
   Menu, 
   X,
   LayoutDashboard,
   ClipboardCheck,
-  Globe
+  Globe,
+  ShieldAlert
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -24,6 +22,7 @@ const App: React.FC = () => {
     { id: 'Avaliacao', label: 'Avaliação', icon: ClipboardCheck },
     { id: 'Ranking', label: 'Ranking Geral', icon: LayoutDashboard },
     { id: 'Consulta', label: 'Consulta Externa', icon: Globe },
+    { id: 'Gestao', label: 'Central do Gestor', icon: ShieldAlert },
   ];
 
   return (
@@ -78,6 +77,7 @@ const App: React.FC = () => {
           {currentView === 'Avaliacao' && <EvaluationScreen />}
           {currentView === 'Ranking' && <RankingScreen onOpenDetails={(s) => {}} />}
           {currentView === 'Consulta' && <ExternalScreen />}
+          {currentView === 'Gestao' && <ManagementScreen />}
         </div>
       </main>
 

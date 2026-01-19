@@ -27,6 +27,10 @@ export interface Supplier {
   occurrences: number;
   segment: string;
   items: OCItem[];
+  // Novos campos de Gestão
+  warnings: number;
+  isBlocked: boolean;
+  lastAuditDate?: string;
 }
 
 export interface IssueRecord {
@@ -44,6 +48,6 @@ export interface IssueRecord {
   attachmentsList?: string[];
 }
 
-export type ViewType = 'Avaliacao' | 'Ranking' | 'Consulta';
+export type ViewType = 'Avaliacao' | 'Ranking' | 'Consulta' | 'Gestao';
 
 export const ITEM_RELATED_TYPES = ['Atraso na entrega', 'Produto com defeito', 'Divergência no pedido'];
