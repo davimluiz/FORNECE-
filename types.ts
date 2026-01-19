@@ -12,6 +12,12 @@ export interface OCItem {
   unit: string;
 }
 
+export interface WarningLog {
+  date: string;
+  reason: string;
+  manager: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -27,10 +33,10 @@ export interface Supplier {
   occurrences: number;
   segment: string;
   items: OCItem[];
-  // Novos campos de Gestão
   warnings: number;
   isBlocked: boolean;
   lastAuditDate?: string;
+  warningLogs?: WarningLog[]; // Histórico detalhado de strikes
 }
 
 export interface IssueRecord {

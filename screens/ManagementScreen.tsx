@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { MOCK_SUPPLIERS, MOCK_ISSUES, COLORS } from '../constants';
-import { Supplier, IssueRecord } from '../types';
+import { Supplier, IssueRecord, WarningLog } from '../types';
 import { 
   ShieldAlert, Users, Ban, AlertCircle, TrendingDown, 
   TrendingUp, FileDown, Upload, Search, Lock,
   ChevronRight, Sparkles, CheckCircle2, History, Database,
   MessageSquare, Send, Mail, X, AlertTriangle, Eye,
-  Printer, BarChart3, Star, Download, Globe
+  Printer, BarChart3, Star, Download, Globe, ChevronLeft,
+  Calendar, User
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
@@ -38,6 +39,9 @@ const ManagementScreen: React.FC = () => {
   const [selectedIssue, setSelectedIssue] = useState<PendingIssue | null>(null);
   const [selectedSupplierDetails, setSelectedSupplierDetails] = useState<Supplier | null>(null);
   
+  // Sub-detail states (inside supplier modal)
+  const [activeSubView, setActiveSubView] = useState<'dashboard' | 'penalties' | 'occurrences'>('dashboard');
+
   // Interaction States
   const [responseEmail, setResponseEmail] = useState('');
   const [responseText, setResponseText] = useState('');
@@ -82,7 +86,17 @@ const ManagementScreen: React.FC = () => {
       if (s.id === supplierId) {
         const newWarnings = s.warnings + 1;
         const shouldBlock = newWarnings >= 3;
-        return { ...s, warnings: newWarnings, isBlocked: shouldBlock || s.isBlocked };
+        const newLog: WarningLog = {
+          date: new Date().toISOString().split('T')[0],
+          reason: 'Penalidade aplicada manualmente pelo gestor via Central.',
+          manager: 'Gestor Logado'
+        };
+        return { 
+          ...s, 
+          warnings: newWarnings, 
+          isBlocked: shouldBlock || s.isBlocked,
+          warningLogs: [...(s.warningLogs || []), newLog]
+        };
       }
       return s;
     }));
@@ -90,7 +104,7 @@ const ManagementScreen: React.FC = () => {
 
   const resetWarnings = (supplierId: string) => {
     setSuppliers(prev => prev.map(s => 
-      s.id === supplierId ? { ...s, warnings: 0, isBlocked: false } : s
+      s.id === supplierId ? { ...s, warnings: 0, isBlocked: false, warningLogs: [] } : s
     ));
   };
 
@@ -137,6 +151,11 @@ const ManagementScreen: React.FC = () => {
     } finally {
       setIsAnalyzing(null);
     }
+  };
+
+  const openSupplierDetail = (supplier: Supplier) => {
+    setSelectedSupplierDetails(supplier);
+    setActiveSubView('dashboard');
   };
 
   if (!isLoggedIn) {
@@ -295,7 +314,7 @@ const ManagementScreen: React.FC = () => {
                       <td className="p-4">
                         <div 
                           className="flex flex-col cursor-pointer hover:translate-x-1 transition-transform"
-                          onClick={() => setSelectedSupplierDetails(s)}
+                          onClick={() => openSupplierDetail(s)}
                         >
                           <span className="text-sm font-bold text-[#003366] group-hover:underline">{s.name}</span>
                           <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">{s.cnpj}</span>
@@ -318,7 +337,7 @@ const ManagementScreen: React.FC = () => {
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2">
                           <button 
-                            onClick={() => setSelectedSupplierDetails(s)} 
+                            onClick={() => openSupplierDetail(s)} 
                             className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-all"
                             title="Ver Histórico Completo"
                           >
@@ -375,7 +394,7 @@ const ManagementScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL: DETALHES DO FORNECEDOR (O QUE FOI PEDIDO) */}
+      {/* MODAL: DETALHES DO FORNECEDOR */}
       {selectedSupplierDetails && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 print:p-0 print:static print:z-0">
           <div className="absolute inset-0 bg-[#003366]/60 backdrop-blur-md print:hidden" onClick={() => setSelectedSupplierDetails(null)} />
@@ -400,6 +419,14 @@ const ManagementScreen: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2 print:hidden">
+                {activeSubView !== 'dashboard' && (
+                  <button 
+                    onClick={() => setActiveSubView('dashboard')}
+                    className="p-3 bg-white border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-100 transition-all flex items-center gap-2 font-bold text-xs uppercase"
+                  >
+                    <ChevronLeft size={18} /> Voltar ao Painel
+                  </button>
+                )}
                 <button 
                   onClick={handlePrintReport}
                   className="p-3 bg-white border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-100 transition-all flex items-center gap-2 font-bold text-xs uppercase"
@@ -412,116 +439,186 @@ const ManagementScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Modal Content / Dashboard Individual */}
+            {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-hide print:overflow-visible print:p-0">
               
-              {/* Individual Dashboard Section */}
-              <section className="grid md:grid-cols-3 gap-6">
-                 {/* Rating Card */}
-                 <div className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow text-center">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">Média de Performance</span>
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                       <Star size={32} fill="#FACC15" className="text-yellow-400" />
-                       <span className="text-4xl font-black text-[#003366]">{selectedSupplierDetails.averageScore.toFixed(1)}</span>
+              {activeSubView === 'dashboard' && (
+                <div className="space-y-10 animate-fadeIn">
+                  {/* Individual Dashboard Section */}
+                  <section className="grid md:grid-cols-3 gap-6">
+                    {/* Rating Card */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow text-center">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">Média de Performance</span>
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <Star size={32} fill="#FACC15" className="text-yellow-400" />
+                          <span className="text-4xl font-black text-[#003366]">{selectedSupplierDetails.averageScore.toFixed(1)}</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-400">Com base em {selectedSupplierDetails.volume} pedidos</p>
                     </div>
-                    <p className="text-[10px] font-bold text-gray-400">Com base em {selectedSupplierDetails.volume} pedidos</p>
-                 </div>
 
-                 {/* Strikes Card */}
-                 <div className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 block text-center">Histórico de Penalidades</span>
-                    <div className="flex justify-center gap-3 mb-4">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center ${i <= selectedSupplierDetails.warnings ? 'bg-red-500 border-red-600 text-white shadow-lg' : 'bg-gray-50 border-gray-200 text-gray-300'}`}>
-                           {i <= selectedSupplierDetails.warnings ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}
+                    {/* Strikes Card - CLICKABLE */}
+                    <button 
+                      onClick={() => setActiveSubView('penalties')}
+                      className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow hover:border-[#003366] transition-all text-left group"
+                    >
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 block text-center">Histórico de Penalidades</span>
+                        <div className="flex justify-center gap-3 mb-4">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center ${i <= selectedSupplierDetails.warnings ? 'bg-red-500 border-red-600 text-white shadow-lg' : 'bg-gray-50 border-gray-200 text-gray-300'}`}>
+                              {i <= selectedSupplierDetails.warnings ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}
+                            </div>
+                          ))}
+                        </div>
+                        <p className={`text-[10px] font-black text-center uppercase tracking-widest flex items-center justify-center gap-1 ${selectedSupplierDetails.warnings >= 3 ? 'text-red-600' : 'text-gray-400'}`}>
+                          {selectedSupplierDetails.warnings} de 3 Strikes Aplicados
+                          <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                        </p>
+                    </button>
+
+                    {/* Volume Card - CLICKABLE */}
+                    <button 
+                      onClick={() => setActiveSubView('occurrences')}
+                      className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow flex flex-col justify-center items-center hover:border-[#003366] transition-all group"
+                    >
+                        <TrendingUp size={32} className="text-blue-500 mb-2" />
+                        <span className="text-2xl font-black text-[#003366]">{selectedSupplierDetails.occurrences}</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          Ocorrências Totais
+                          <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                        </span>
+                    </button>
+                  </section>
+
+                  {/* Detalhamento de Critérios */}
+                  <section className="bg-[#003366] p-8 rounded-[40px] text-white overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                      <BarChart3 size={200} />
+                    </div>
+                    <h3 className="font-black uppercase tracking-tighter mb-8 flex items-center gap-2">
+                      <BarChart3 size={20} className="text-blue-300" /> Detalhamento de Performance
+                    </h3>
+                    <div className="grid md:grid-cols-3 gap-10">
+                      {[
+                        { label: 'Qualidade Técnica', value: selectedSupplierDetails.criteria.quality, color: 'bg-green-400' },
+                        { label: 'Pontualidade Entrega', value: selectedSupplierDetails.criteria.delivery, color: 'bg-yellow-400' },
+                        { label: 'Suporte Pós-Venda', value: selectedSupplierDetails.criteria.support, color: 'bg-blue-400' },
+                      ].map((c, idx) => (
+                        <div key={idx} className="space-y-4">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">{c.label}</span>
+                              <span className="text-xl font-black">{c.value.toFixed(1)}/5.0</span>
+                            </div>
+                            <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                              <div className={`h-full ${c.color} rounded-full transition-all duration-1000`} style={{ width: `${(c.value/5)*100}%` }}></div>
+                            </div>
                         </div>
                       ))}
                     </div>
-                    <p className={`text-[10px] font-black text-center uppercase tracking-widest ${selectedSupplierDetails.warnings >= 3 ? 'text-red-600' : 'text-gray-400'}`}>
-                       {selectedSupplierDetails.warnings} de 3 Strikes Aplicados
-                    </p>
-                 </div>
-
-                 {/* Volume Card */}
-                 <div className="bg-white p-6 rounded-3xl border border-gray-100 findes-shadow flex flex-col justify-center items-center">
-                    <TrendingUp size={32} className="text-blue-500 mb-2" />
-                    <span className="text-2xl font-black text-[#003366]">{selectedSupplierDetails.occurrences}</span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ocorrências Totais</span>
-                 </div>
-              </section>
-
-              {/* Detalhamento de Critérios */}
-              <section className="bg-[#003366] p-8 rounded-[40px] text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-8 opacity-5">
-                  <BarChart3 size={200} />
+                  </section>
                 </div>
-                <h3 className="font-black uppercase tracking-tighter mb-8 flex items-center gap-2">
-                  <BarChart3 size={20} className="text-blue-300" /> Detalhamento de Performance
-                </h3>
-                <div className="grid md:grid-cols-3 gap-10">
-                   {[
-                     { label: 'Qualidade Técnica', value: selectedSupplierDetails.criteria.quality, color: 'bg-green-400' },
-                     { label: 'Pontualidade Entrega', value: selectedSupplierDetails.criteria.delivery, color: 'bg-yellow-400' },
-                     { label: 'Suporte Pós-Venda', value: selectedSupplierDetails.criteria.support, color: 'bg-blue-400' },
-                   ].map((c, idx) => (
-                     <div key={idx} className="space-y-4">
-                        <div className="flex justify-between items-end">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">{c.label}</span>
-                          <span className="text-xl font-black">{c.value.toFixed(1)}/5.0</span>
-                        </div>
-                        <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                          <div className={`h-full ${c.color} rounded-full transition-all duration-1000`} style={{ width: `${(c.value/5)*100}%` }}></div>
-                        </div>
-                     </div>
-                   ))}
-                </div>
-              </section>
+              )}
 
-              {/* Histórico de Reclamações Filtrado */}
-              <section className="space-y-4">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-                  <h3 className="font-black text-[#003366] uppercase tracking-tighter flex items-center gap-2">
-                    <History size={20} /> Histórico de Ocorrências Registradas
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                   {MOCK_ISSUES.map(issue => (
-                     <div key={issue.id} className="p-6 bg-gray-50 rounded-3xl border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                        <div className="flex items-center gap-4">
-                           <div className="p-3 bg-white rounded-2xl text-gray-400">
-                             <FileDown size={20} />
-                           </div>
-                           <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{issue.date}</span>
-                                <span className="text-[9px] font-black bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-500">{issue.ocId}</span>
+              {/* VIEW: HISTÓRICO DE PENALIDADES (STRIKES) */}
+              {activeSubView === 'penalties' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                    <button onClick={() => setActiveSubView('dashboard')} className="p-2 hover:bg-gray-100 rounded-full text-[#003366]">
+                      <ChevronLeft size={20} />
+                    </button>
+                    <h3 className="font-black text-[#003366] uppercase tracking-tighter text-xl">Motivo das Advertências Aplicadas</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {selectedSupplierDetails.warningLogs && selectedSupplierDetails.warningLogs.length > 0 ? (
+                      selectedSupplierDetails.warningLogs.map((log, idx) => (
+                        <div key={idx} className="bg-red-50/50 border border-red-100 p-6 rounded-[32px] flex gap-5 items-start">
+                          <div className="bg-red-500 text-white p-4 rounded-2xl shadow-md">
+                            <span className="font-black text-lg">#{idx + 1}</span>
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase">
+                                  <Calendar size={12} /> {log.date}
+                                </span>
+                                <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase">
+                                  <User size={12} /> {log.manager}
+                                </span>
                               </div>
-                              <h4 className="font-black text-[#003366] text-sm uppercase">{issue.type}</h4>
-                              <p className="text-xs text-gray-500 italic mt-1 line-clamp-1">"{issue.description}"</p>
-                           </div>
+                              <span className="text-[9px] font-black bg-red-100 text-red-600 px-3 py-1 rounded-full uppercase">Advertência Formal</span>
+                            </div>
+                            <p className="text-sm font-bold text-gray-700 leading-relaxed italic">"{log.reason}"</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                           <span className={`text-[9px] font-black px-3 py-1 rounded-full border uppercase
-                             ${issue.status === 'Fechado' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}
-                           `}>{issue.status}</span>
-                        </div>
-                     </div>
-                   ))}
+                      ))
+                    ) : (
+                      <div className="text-center py-20 bg-gray-50 rounded-[40px] border border-dashed border-gray-200">
+                        <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
+                        <p className="font-bold text-gray-400 uppercase text-xs">Nenhum strike registrado até o momento.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </section>
+              )}
 
-              {/* AI Prediction in Detail */}
-              <section className="bg-purple-50 p-8 rounded-[40px] border border-purple-100 flex items-start gap-6">
-                 <div className="p-4 bg-white text-purple-600 rounded-3xl shadow-sm">
-                   <Sparkles size={24} />
-                 </div>
-                 <div className="flex-1">
-                    <h4 className="text-purple-900 font-black uppercase text-sm tracking-tighter">Parecer Preditivo do Sistema</h4>
-                    <p className="text-xs text-purple-800/70 mt-1 leading-relaxed italic">
-                      {iaAnalysis[selectedSupplierDetails.id] || "Clique em 'Análise Preditiva' no menu principal para gerar um parecer estratégico sobre este fornecedor."}
-                    </p>
-                 </div>
-              </section>
+              {/* VIEW: OCORRÊNCIAS TOTAIS */}
+              {activeSubView === 'occurrences' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                    <button onClick={() => setActiveSubView('dashboard')} className="p-2 hover:bg-gray-100 rounded-full text-[#003366]">
+                      <ChevronLeft size={20} />
+                    </button>
+                    <h3 className="font-black text-[#003366] uppercase tracking-tighter text-xl">Relatório de Ocorrências e Reclamações</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {MOCK_ISSUES.map(issue => (
+                      <div key={issue.id} className="p-8 bg-white rounded-[40px] findes-shadow border border-gray-100 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center group">
+                          <div className="flex items-center gap-5">
+                            <div className="p-4 bg-gray-50 rounded-2xl text-gray-400 group-hover:bg-[#003366] group-hover:text-white transition-all">
+                              <FileDown size={24} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{issue.date}</span>
+                                  <span className="text-[9px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded border border-gray-200 uppercase">{issue.ocId}</span>
+                                </div>
+                                <h4 className="font-black text-[#003366] text-base uppercase">{issue.type}</h4>
+                                <p className="text-sm text-gray-500 italic mt-1 leading-relaxed">"{issue.description}"</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className={`text-[10px] font-black px-4 py-1.5 rounded-full border uppercase tracking-widest
+                              ${issue.status === 'Fechado' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}
+                            `}>{issue.status}</span>
+                            <button className="p-2 text-gray-300 hover:text-[#003366]"><ChevronRight size={20}/></button>
+                          </div>
+                      </div>
+                    ))}
+                    {MOCK_ISSUES.length === 0 && (
+                      <div className="text-center py-20 bg-gray-50 rounded-[40px] border border-dashed border-gray-200">
+                        <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
+                        <p className="font-bold text-gray-400 uppercase text-xs">Nenhuma ocorrência registrada para este fornecedor.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Prediction in Detail (Only on main dashboard) */}
+              {activeSubView === 'dashboard' && (
+                <section className="bg-purple-50 p-8 rounded-[40px] border border-purple-100 flex items-start gap-6">
+                   <div className="p-4 bg-white text-purple-600 rounded-3xl shadow-sm">
+                     <Sparkles size={24} />
+                   </div>
+                   <div className="flex-1">
+                      <h4 className="text-purple-900 font-black uppercase text-sm tracking-tighter">Parecer Preditivo do Sistema</h4>
+                      <p className="text-xs text-purple-800/70 mt-1 leading-relaxed italic">
+                        {iaAnalysis[selectedSupplierDetails.id] || "Clique em 'Análise Preditiva' no menu principal para gerar um parecer estratégico sobre este fornecedor."}
+                      </p>
+                   </div>
+                </section>
+              )}
             </div>
 
             {/* Footer Detail */}
