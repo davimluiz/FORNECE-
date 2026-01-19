@@ -135,7 +135,8 @@ const ManagementScreen: React.FC = () => {
   const analyzeWithAI = async (supplier: Supplier) => {
     setIsAnalyzing(supplier.id);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      // Fixed: Initialize GoogleGenAI according to guidelines using process.env.API_KEY directly
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Analise o risco de compliance deste fornecedor:
