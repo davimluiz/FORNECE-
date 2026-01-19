@@ -22,7 +22,7 @@ const App: React.FC = () => {
 
   const navItems = [
     { id: 'Avaliacao', label: 'Avaliação', icon: ClipboardCheck },
-    { id: 'Ranking', label: 'Ranking', icon: LayoutDashboard },
+    { id: 'Ranking', label: 'Ranking Geral', icon: LayoutDashboard },
     { id: 'Consulta', label: 'Consulta Externa', icon: Globe },
   ];
 
@@ -43,7 +43,7 @@ const App: React.FC = () => {
       `}>
         <div className="p-8 hidden md:block">
           <div className="text-xl font-black tracking-tighter leading-none">FINDES<br/><span className="text-blue-300">FORNECE+</span></div>
-          <div className="text-[10px] opacity-70 tracking-widest mt-2 font-medium">PORTAL DE GESTÃO</div>
+          <div className="text-[10px] opacity-70 tracking-widest mt-2 font-medium uppercase">Portal de Gestão</div>
         </div>
 
         <nav className="mt-8 px-4 space-y-2">
